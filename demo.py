@@ -2,6 +2,7 @@
 import sys
 import nltk
 # from nltk.tokenize.punkt import PunktSentenceTokenizer
+from nltk.tokenize import sent_tokenize
 
 
 document = """To Sherlock Holmes she is always the woman. I have
@@ -24,8 +25,9 @@ that woman was the late Irene Adler, of dubious and questionable
 memory.
 """
 
-# document = ' '.join(document.strip().split('\n'))
-sentences = nltk.word_tokenize(document)
+document = ' '.join(document.strip().split('\n'))
+sentences = sent_tokenize(document)
 # sentence_tokenizer = PunktSentenceTokenizer()
 # sentences = sentence_tokenizer.tokenize(document)
 print sentences
+print len(sentences)
