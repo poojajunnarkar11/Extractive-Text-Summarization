@@ -1,65 +1,62 @@
-import nltk
-import itertools
+"""
+Dependencies: NLTK, NetworkX- https://networkx.github.io/documentation/networkx-1.10/tutorial/tutorial.html
+
+"""
+from nltk import tokenize
 import networkx as nx
+import itertools
 import os
 import io
 
-def levenshtein_dist(firstString, secondString):
-    "Function to find the Levenshtein distance between two sentences - gotten from http://rosettacode.org/wiki/Levenshtein_distance#Python"
-    if len(firstString) > len(secondString):
-        firstString, secondString = secondString, firstString
-    distances = range(len(firstString) + 1)
-    for index2, char2 in enumerate(secondString):
-        newDistances = [index2 + 1]
-        for index1, char1 in enumerate(firstString):
-            if char1 == char2:
-                newDistances.append(distances[index1])
+def levenshtein_dist(sentence_one, sentence_two):
+    if len(sentence_one) > len(sentence_two):
+        sentence_one, sentence_two = sentence_two, sentence_one
+    distance = range(len(sentence_one) + 1)
+    for index, character in enumerate(sentence_two):
+        new_distance = [index + 1]
+        for index1, character1 in enumerate(sentence_one):
+            if character1 == character:
+                new_distance.append(distance[index1])
             else:
-                newDistances.append(1 + min((distances[index1], distances[index1+1], newDistances[-1])))
-        distances = newDistances
-    return distances[-1]
+                min_distance = min((distance[index1], distance[index1+1], new_distance[-1]))
+                new_distance.append(1 + min_distance)
+        distance = new_distance
+    return distance[-1]
 
-def buildGraph(nodes):
-    "nodes - list of hashables that represents the nodes of the graph"
-    gr = nx.Graph() #initialize an undirected graph
-    gr.add_nodes_from(nodes)
-    nodePairs = list(itertools.combinations(nodes, 2))
+def model_graph(vertices):
 
-    #add edges to the graph (weighted by Levenshtein distance)
-    for pair in nodePairs:
-        firstString = pair[0]
-        secondString = pair[1]
-        levDistance = levenshtein_dist(firstString, secondString)
-        gr.add_edge(firstString, secondString, weight=levDistance)
+    graph = nx.Graph()
+    graph.add_nodes_from(vertices)
+    combinations = itertools.combinations(vertices, 2)
+    vertex_pairs = list(combinations)
 
-    return gr
+    for pair in vertex_pairs:
+        sentence_one = pair[0]
+        sentence_two = pair[1]
+        similarity = levenshtein_dist(sentence_one, sentence_two)
+        graph.add_edge(sentence_one, sentence_two, weight=similarity)
 
-def extract_summary(text):
-    sent_detector = nltk.data.load('tokenizers/punkt/english.pickle')
-    sentenceTokens = sent_detector.tokenize(text.strip())
-    graph = buildGraph(sentenceTokens)
+    return graph
 
-    calculated_page_rank = nx.pagerank(graph, weight='weight')
-    #most important sentences in ascending order of importance
-    sentences = sorted(calculated_page_rank, key=calculated_page_rank.get, reverse=True)
+def get_summary(text):
+    sentence_tokens = tokenize.sent_tokenize(text)
+    graph = model_graph(sentence_tokens)
 
-    #return a 100 word summary
-    summary = ' '.join(sentences)
-    summaryWords = summary.split()
-    summaryWords = summaryWords[0:101]
-    summary = ' '.join(summaryWords)
+    page_ranks = nx.pagerank(graph, weight='weight')
+    sorted_page_ranks = sorted(page_ranks, key=page_ranks.get, reverse=True)
 
-    return summary
+    final_summary = ' '.join((' '.join(sorted_page_ranks).split())[0:101])
+    return final_summary
 
-def write_files(summary, fileName):
-    print '\nGenerating summary to ' + 'summaries/' + fileName
-    summaryFile = io.open('summaries/' + fileName, 'w')
-    summaryFile.write(summary)
-    summaryFile.close()
+def write_files(summary, text_file):
+    print '\nGenerating summary to ' + 'summaries/' + text_file
+    summary_file = io.open('summaries/' + text_file, 'w')
+    summary_file.write(summary)
+    summary_file.close()
 
     print '\n-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-'
 
-# Get all .txt files from /documents
+
 documents = []
 for text_files in os.listdir("documents"):
     if text_files.endswith(".txt"):
@@ -68,6 +65,6 @@ for text_file in documents:
     print '\nSummarizing text from documents/' + text_file
     doc_file = io.open('documents/' + text_file, 'r')
     text = doc_file.read()
-    summary = extract_summary(text)
+    summary = get_summary(text)
     print '\nSummary for document: '+ text_file + "\n" + summary
     write_files(summary, text_file)
